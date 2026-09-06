@@ -12,12 +12,10 @@ plugin, and without sending anything anywhere except Discord's local IPC pipe.
 └─────────────────────────────────────────────┘
 ```
 
-The project is deliberately split into two small processes:
-
-* **Python** reads Unity Hub's local state files and emits one JSON object per
-  poll cycle.
-* **TypeScript/Node.js** reads that stream, transforms it into Rich Presence,
-  and talks to Discord over local IPC.
+The production daemon is a single TypeScript/Node.js process. It reads Unity
+Hub's local state, transforms it into Rich Presence, and talks to Discord over
+local IPC. The Python parser remains in `python/` for cross-platform parser
+testing and development, but is not required to run the installed daemon.
 
 ## How it detects things
 
@@ -81,20 +79,36 @@ npm run build
 npm start
 ```
 
+To register automatic startup on Windows after building:
+
+```powershell
+npm run install:windows
+```
+
+This creates a per-user `UnityHubRPC` Scheduled Task that launches the daemon
+hidden at Windows logon. Remove it with:
+
+```powershell
+npm run uninstall:windows
+```
+
+The daemon keeps running quietly, waits for Discord if it is closed, and
+switches to idle while no Unity project is detected. Its log is stored at
+`%LOCALAPPDATA%\UnityHubRPC\unity-hub-rpc.log`.
+
 For TypeScript development:
 
 ```bash
 npm run dev
 ```
 
-To inspect the Python side independently:
+To inspect the optional Python parser independently:
 
 ```bash
 python python/state_monitor.py
 ```
 
-The poll interval is five seconds by default and can be changed by the Node
-configuration once the config hot-reload phase is enabled.
+The poll interval is five seconds by default and is read from `config.json`.
 
 ## Presence mapping
 
@@ -125,7 +139,7 @@ states include the poller's timestamp as the elapsed-session start time.
 The schema validates the client ID, update interval, display flags, idle timeout,
 and custom status format. Invalid or missing configuration falls back to safe
 defaults. Config hot reload and the interactive tray menu are planned for the
-next phase; the current Phase 0/1 entry point uses the default configuration.
+next phase.
 
 ## Security and privacy
 
@@ -173,10 +187,10 @@ and pull request.
 
 ## Roadmap
 
-The repository currently contains the Phase 0/1 core loop: scaffolding, state
-parsing, Python-to-Node IPC, presence transformation, Discord IPC, and tests.
-Planned follow-up work includes config hot reload, a fully wired system tray,
-idle timeout behavior, structured logging, packaging, and release automation.
+The repository currently contains the autonomous Node core: state parsing,
+presence transformation, Discord IPC, local logging, Windows autostart scripts,
+and tests. Planned follow-up work includes a fully wired system tray, a signed
+single-file installer, config hot reload, and release automation.
 
 ## License
 

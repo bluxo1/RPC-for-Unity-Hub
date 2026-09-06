@@ -4,10 +4,12 @@
   "private": true,
   "type": "module",
   "description": "Discord Rich Presence for Unity Hub",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/src/index.js",
+    "install:windows": "npm run build && powershell -ExecutionPolicy Bypass -File scripts/install-windows.ps1",
+    "uninstall:windows": "powershell -ExecutionPolicy Bypass -File scripts/uninstall-windows.ps1",
     "dev": "tsx src/index.ts",
     "test": "vitest run",
     "lint": "eslint src tests/ts --max-warnings 0",
