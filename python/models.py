@@ -1,7 +1,7 @@
 """Typed models for Unity Hub state."""
+
 from dataclasses import dataclass
 from typing import Any
-
 
 
 @dataclass(frozen=True)
