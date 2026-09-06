@@ -205,7 +205,7 @@ Enable Unity developers to share their current project, engine version, and acti
 1. Should we support custom Discord applications (user-provided client IDs) or ship with a built-in one?
 2. How should we handle Unity Hub's state file format changes across versions?
 3. Should we offer a portable (no-install) version in addition to an installer?
-4. Is there value in a "Do Not Disturb" mode that temporarily disables updates?
+4. Is there value in a "Do Not Disturb" mode that temporarily disables update?
 
 ---
 
