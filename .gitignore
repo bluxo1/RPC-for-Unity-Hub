@@ -1,0 +1,7 @@
+node_modules/
+dist/
+config.json
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
