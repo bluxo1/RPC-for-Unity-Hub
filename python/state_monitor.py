@@ -25,7 +25,7 @@ def _read_json(path: Path) -> Any:
 def parse_state_documents(documents: list[Any], *, hub_running: bool, timestamp: float | None = None) -> UnityHubState:
     project = version = scene = project_path = None
     for document in documents:
-        for item in document if isinstance(document, list) else [document]:
+        for item in (document if isinstance(document, list) else [document]):
             if not isinstance(item, dict):
                 continue
             project_path = project_path or _first_string(item, ("projectPath", "path", "location"))
