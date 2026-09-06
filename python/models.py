@@ -1,6 +1,8 @@
 """Typed models for Unity Hub state."""
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from typing import Any
+
+
 
 @dataclass(frozen=True)
 class UnityHubState:
@@ -12,4 +14,11 @@ class UnityHubState:
     timestamp: float = 0.0
 
     def to_json_dict(self) -> dict[str, Any]:
-        return {"project": self.project, "version": self.version, "scene": self.scene, "projectPath": self.project_path, "unityHubRunning": self.unity_hub_running, "timestamp": self.timestamp}
+        return {
+            "project": self.project,
+            "version": self.version,
+            "scene": self.scene,
+            "projectPath": self.project_path,
+            "unityHubRunning": self.unity_hub_running,
+            "timestamp": self.timestamp,
+        }

@@ -25,7 +25,7 @@ def _read_json(path: Path) -> Any:
 def parse_state_documents(documents: list[Any], *, hub_running: bool, timestamp: float | None = None) -> UnityHubState:
     project = version = scene = project_path = None
     for document in documents:
-        for item in (document if isinstance(document, list) else [document]):
+        for item in document if isinstance(document, list) else [document]:
             if not isinstance(item, dict):
                 continue
             project_path = project_path or _first_string(item, ("projectPath", "path", "location"))
@@ -34,11 +34,20 @@ def parse_state_documents(documents: list[Any], *, hub_running: bool, timestamp:
             scene = scene or _first_string(item, ("scene", "sceneName", "activeScene"))
             if project_path and not project:
                 project = Path(project_path).name
-    return UnityHubState(project, version, scene, project_path, hub_running, timestamp or time.time())
+    return UnityHubState(
+        project,
+        version,
+        scene,
+        project_path,
+        hub_running,
+        timestamp if timestamp is not None else time.time(),
+    )
 
 def read_current_state(platform: str | None = None) -> UnityHubState:
     files = find_state_files(platform)
-    return parse_state_documents([_read_json(path) for path in files], hub_running=bool(files))
+    return parse_state_documents(
+        [_read_json(path) for path in files], hub_running=bool(files)
+    )
 
 def poll(interval_ms: int = 5000, platform: str | None = None) -> None:
     while True:
