@@ -1,0 +1,35 @@
+{
+  "name": "unity-hub-rpc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Discord Rich Presence for Unity Hub",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/src/index.js",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "lint": "eslint src tests/ts --max-warnings 0",
+    "format": "prettier --write src tests/ts *.json *.md",
+    "format:check": "prettier --check src tests/ts *.json *.md"
+  },
+  "dependencies": {
+    "@xhayper/discord-rpc": "^1.3.2",
+    "chokidar": "^4.0.3",
+    "systray2": "^2.1.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^22.10.2",
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^2.1.8"
+  }
+}

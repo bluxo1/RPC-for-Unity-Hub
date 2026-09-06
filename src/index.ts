@@ -1,0 +1,10 @@
+import { DiscordClient } from './discord/client.js';
+import { PythonBridge } from './bridge/pythonBridge.js';
+import { defaultConfig } from './config/schema.js';
+import { toPresence } from './presence/transformer.js';
+const config = defaultConfig;
+const discord = new DiscordClient(config.discordClientId);
+const bridge = new PythonBridge((state) => void discord.update(toPresence(state, config.showSceneName, config.customStatusFormat)), config.updateIntervalMs);
+bridge.start();
+process.once('SIGINT', () => { bridge.stop(); process.exit(0); });
+process.once('SIGTERM', () => { bridge.stop(); process.exit(0); });
