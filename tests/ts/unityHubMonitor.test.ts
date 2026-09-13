@@ -14,4 +14,12 @@ describe('Unity Hub monitor parser', () => {
   it('returns idle for no state documents', () => {
     expect(parseUnityHubDocuments([], 1)).toMatchObject({ project: null, unityHubRunning: false, timestamp: 1 });
   });
+
+  it('resolves projects from the current Unity Hub nested project format', () => {
+    expect(parseUnityHubDocuments([{ projects: [{ path: 'C:/Games/SpaceGame', title: 'SpaceGame' }] }], 1)).toMatchObject({
+      project: 'SpaceGame',
+      projectPath: 'C:/Games/SpaceGame',
+      unityHubRunning: true,
+    });
+  });
 });

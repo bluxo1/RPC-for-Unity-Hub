@@ -10,7 +10,12 @@ export function unityHubStatePaths(env: NodeJS.ProcessEnv = process.env): string
   if (platform() === 'win32') {
     return [env.APPDATA, env.LOCALAPPDATA]
       .filter((root): root is string => Boolean(root))
-      .flatMap((root) => [join(root, 'UnityHub', 'editor'), join(root, 'UnityHub', 'projects.json')]);
+      .flatMap((root) => [
+        join(root, 'UnityHub', 'projects-v1.json'),
+        join(root, 'UnityHub', 'editorv2.json'),
+        join(root, 'UnityHub', 'projects.json'),
+        join(root, 'UnityHub', 'editor'),
+      ]);
   }
   if (platform() === 'darwin') {
     const root = join(homedir(), 'Library', 'Application Support', 'UnityHub');
@@ -30,7 +35,9 @@ function firstString(data: JsonValue, keys: string[]): string | null {
 }
 
 function documentsItems(document: JsonValue): JsonValue[] {
-  return Array.isArray(document) ? document : [document];
+  if (Array.isArray(document)) return document.flatMap(documentsItems);
+  if (!document || typeof document !== 'object') return [];
+  return [document, ...Object.values(document).flatMap(documentsItems)];
 }
 
 export function parseUnityHubDocuments(documents: JsonValue[], timestamp = Date.now() / 1000): UnityHubState {
@@ -41,7 +48,7 @@ export function parseUnityHubDocuments(documents: JsonValue[], timestamp = Date.
   for (const document of documents) {
     for (const item of documentsItems(document)) {
       projectPath ??= firstString(item, ['projectPath', 'path', 'location']);
-      project ??= firstString(item, ['project', 'projectName', 'name']);
+      project ??= firstString(item, ['project', 'projectName', 'name', 'title']);
       version ??= firstString(item, ['version', 'unityVersion', 'editorVersion']);
       scene ??= firstString(item, ['scene', 'sceneName', 'activeScene']);
       if (projectPath && !project) project = basename(projectPath);
