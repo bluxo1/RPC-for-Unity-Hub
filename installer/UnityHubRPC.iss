@@ -24,7 +24,7 @@ Source: "..\config.example.json"; DestDir: "{app}"; DestName: "config.example.js
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
-Name: "{userstartup}\{#AppName}"; Filename: "powershell.exe"; Parameters: "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command \"Start-Process -FilePath '{app}\{#AppExeName}' -WorkingDirectory '{app}' -WindowStyle Hidden\""
+Name: "{userstartup}\{#AppName}"; Filename: "powershell.exe"; Parameters: "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command ""Start-Process -FilePath '{app}\{#AppExeName}' -WorkingDirectory '{app}' -WindowStyle Hidden"""
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "Start {#AppName}"; Flags: nowait postinstall skipifsilent
