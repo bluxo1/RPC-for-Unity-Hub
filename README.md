@@ -151,7 +151,7 @@ poller's timestamp as the elapsed-session start time.
 
 ```json
 {
-  "discordClientId": "1234567890123456789",
+  "discordClientId": "1545892869363998771",
   "updateIntervalMs": 5000,
   "showSceneName": true,
   "showProjectPath": false,

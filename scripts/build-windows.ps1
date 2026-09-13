@@ -6,7 +6,7 @@ npm run build
 if ($LASTEXITCODE -ne 0) { throw 'TypeScript build failed.' }
 
 $clientId = $env:UNITY_HUB_RPC_CLIENT_ID
-if (-not $clientId) { $clientId = '1234567890123456789' }
+if (-not $clientId) { $clientId = '1545892869363998771' }
 $encodedClientId = $clientId | ConvertTo-Json -Compress
 npx.cmd esbuild .\src\index.ts --bundle --platform=node --format=cjs "--define:process.env.UNITY_HUB_RPC_CLIENT_ID=$encodedClientId" --outfile=dist\bundle.cjs
 if ($LASTEXITCODE -ne 0) { throw 'esbuild bundling failed.' }
