@@ -15,15 +15,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Validate shared Discord Application ID
-        shell: pwsh
-        env:
-          UNITY_HUB_RPC_CLIENT_ID: ${{ secrets.UNITY_HUB_RPC_CLIENT_ID }}
-        run: |
-          if (-not $env:UNITY_HUB_RPC_CLIENT_ID) { throw 'Set the UNITY_HUB_RPC_CLIENT_ID repository secret before publishing.' }
       - name: Build standalone executable
-        env:
-          UNITY_HUB_RPC_CLIENT_ID: ${{ secrets.UNITY_HUB_RPC_CLIENT_ID }}
         run: npm run build:windows
       - name: Build installer
         shell: pwsh
