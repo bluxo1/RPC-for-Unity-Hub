@@ -20,6 +20,7 @@ Implemented:
 - Discord field truncation to the 128-character limit
 - File logging and a Windows logon startup task
 - TypeScript and Python tests with GitHub Actions CI
+- A standalone Windows executable and Inno Setup release pipeline
 
 Not yet wired into the daemon:
 
@@ -31,7 +32,7 @@ Not yet wired into the daemon:
 
 ## Requirements
 
-- Node.js 22 or newer
+- Node.js 22 or newer for source builds only
 - Unity Hub
 - Discord desktop app
 - Python 3.10 or newer only when using the optional Python parser or Python tests
@@ -56,8 +57,10 @@ pip install -r python/requirements.txt
 2. Copy its **Application ID**.
 3. Upload Rich Presence artwork using these asset keys:
    `unity_logo`, `unity_play`, and `unity_idle`.
-4. Copy `config.example.json` to `config.json` and replace
-   `discordClientId` with your Application ID.
+4. For a public release, the maintainer's shared Application ID is embedded at
+   build time; end users do not enter it. For source builds, copy
+   `config.example.json` to `config.json` and replace `discordClientId` with
+   your Application ID.
 
 Discord desktop must be running; the web client does not expose the local IPC
 socket. No bot token, OAuth secret, server permission, or Discord account
@@ -98,6 +101,22 @@ The Windows log is written to
 `%LOCALAPPDATA%\UnityHubRPC\unity-hub-rpc.log`. On macOS and Linux it is
 written below the user's state directory (`$XDG_STATE_HOME` or
 `~/.local/state`).
+
+## Build the standalone Windows release
+
+The release build bundles the Node daemon into `UnityHubRPC.exe`. A tagged
+GitHub release then wraps it in `UnityHubRPC-Setup.exe` using Inno Setup. Set
+the repository secret `UNITY_HUB_RPC_CLIENT_ID` to the shared Discord
+Application ID before publishing a tag:
+
+```powershell
+$env:UNITY_HUB_RPC_CLIENT_ID = 'your-public-application-id'
+npm run build:windows
+```
+
+The generated executable is in `dist/`. The installer is built by the
+`Windows release` GitHub Actions workflow and installs per-user without admin
+rights.
 
 ## Unity Hub state files
 

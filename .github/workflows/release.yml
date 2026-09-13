@@ -1,0 +1,39 @@
+name: Windows release
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Validate shared Discord Application ID
+        shell: pwsh
+        env:
+          UNITY_HUB_RPC_CLIENT_ID: ${{ secrets.UNITY_HUB_RPC_CLIENT_ID }}
+        run: |
+          if (-not $env:UNITY_HUB_RPC_CLIENT_ID) { throw 'Set the UNITY_HUB_RPC_CLIENT_ID repository secret before publishing.' }
+      - name: Build standalone executable
+        env:
+          UNITY_HUB_RPC_CLIENT_ID: ${{ secrets.UNITY_HUB_RPC_CLIENT_ID }}
+        run: npm run build:windows
+      - name: Build installer
+        shell: pwsh
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\UnityHubRPC.iss'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UnityHubRPC-Windows
+          path: release/UnityHubRPC-Setup.exe
+      - name: Publish release asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/UnityHubRPC-Setup.exe

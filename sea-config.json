@@ -1,0 +1,5 @@
+{
+  "main": "dist/bundle.cjs",
+  "output": "dist/unity-hub-rpc.blob",
+  "disableExperimentalSEAWarning": true
+}
