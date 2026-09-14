@@ -1,1 +1,8 @@
-{"discordClientId":"1545892869363998771","updateIntervalMs":5000,"showSceneName":true,"showProjectPath":false,"idleTimeoutMinutes":5,"customStatusFormat":"{project} — Unity {version}"}
+{
+  "discordClientId": "1545892869363998771",
+  "updateIntervalMs": 15000,
+  "showSceneName": true,
+  "showProjectPath": false,
+  "idleTimeoutMinutes": 5,
+  "customStatusFormat": "{project} — Unity {version}"
+}

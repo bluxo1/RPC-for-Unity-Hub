@@ -1,11 +1,10 @@
 # Unity Hub → Discord Rich Presence
 
-Show the Unity project detected by Unity Hub in Discord Rich Presence, including
-the project name, Unity version, active scene when available, and elapsed
-session time.
+Show the Unity project you currently have open in Discord Rich Presence, including
+the project name, Unity version, and elapsed session time.
 
-The production daemon is a TypeScript/Node.js process. It reads Unity Hub's
-local state files, converts the result into a Discord activity, and communicates
+The production daemon is a TypeScript/Node.js process. It detects the running Unity
+editor, converts the result into a Discord activity, and communicates
 with the Discord desktop client through its local IPC transport. It does not
 need a Discord bot token, a Unity Editor plugin, or project uploads.
 
@@ -13,11 +12,13 @@ need a Discord bot token, a Unity Editor plugin, or project uploads.
 
 Implemented:
 
-- Cross-platform Unity Hub state-file discovery for Windows, macOS, and Linux
-- Project, Unity version, and scene parsing with graceful idle handling
-- Discord IPC connection that tolerates Discord being unavailable
+- Open-project detection from the running Unity editor on Windows, macOS, and Linux
+- Project name and Unity version resolution with graceful idle handling
+- Discord IPC connection that tolerates Discord being unavailable, with a login
+  timeout so an unreachable client cannot wedge the daemon
 - Config loading and validation from `config.json`
 - Discord field truncation to the 128-character limit
+- A stable elapsed-session timer anchored to the open project
 - File logging and a Windows logon startup task
 - TypeScript and Python tests with GitHub Actions CI
 - A standalone Windows executable and Inno Setup release pipeline
@@ -27,8 +28,10 @@ Not yet wired into the daemon:
 - The system-tray boundary in `src/tray/` is currently a placeholder
 - Config hot reload, `idleTimeoutMinutes`, and `showProjectPath` are reserved
   for follow-up work
-- The Python parser is useful for standalone development and tests, but is not
-  required by the Node daemon
+- Active scene reporting, and therefore `showSceneName`, would need an in-editor
+  script; the transformer already handles a scene if one is ever supplied
+- `python/` and `src/bridge/pythonBridge.ts` still implement the superseded
+  Unity Hub state-file approach and are not used by the Node daemon
 
 ## Requirements
 
@@ -118,32 +121,38 @@ The generated executable is in `dist/`. The installer is built by the
 `Windows release` GitHub Actions workflow and installs per-user without admin
 rights.
 
-## Unity Hub state files
+## Project detection
 
-The monitor checks the `editor` and `projects.json` files in Unity Hub's local
-data directory:
+Unity Hub's local data files list the projects you have _registered_, not the one
+you currently have open, so the monitor watches for a running editor instead. Each
+poll enumerates processes and looks for `Unity.exe` (`Unity` on macOS and Linux)
+started with a `-projectPath` argument, which is how Unity Hub launches a project:
 
-| Platform | Location |
-| --- | --- |
-| Windows | `%APPDATA%\UnityHub` and `%LOCALAPPDATA%\UnityHub` |
-| macOS | `~/Library/Application Support/UnityHub` |
-| Linux | `$XDG_CONFIG_HOME/UnityHub` or `~/.config/UnityHub` |
+- **Project name** — the last path segment of `-projectPath`.
+- **Unity version** — the version directory in the editor's own path
+  (`.../Hub/Editor/2022.3.42f1/Editor/Unity.exe`), falling back to
+  `m_EditorVersion` in the project's `ProjectSettings/ProjectVersion.txt`.
+- **Hub running** — whether a `Unity Hub` process is present.
 
-The parser accepts common Unity Hub fields such as `projectPath`, `path`,
-`projectName`, `editorVersion`, and `activeScene`. Missing, unreadable, or
-malformed files result in an idle state rather than a crash.
+Closing the editor returns the presence to idle. A failed process query is treated
+as "nothing open" rather than a crash.
+
+The active scene is not detected: the editor does not publish it to any external
+file, so reporting it would require an in-editor script installed per project.
+`showSceneName` therefore has no effect at present.
 
 ## Presence mapping
 
-| Detected state | Details | State | Artwork |
-| --- | --- | --- | --- |
-| Project open | Configured project format | `Unity {version}` | `unity_logo` |
-| Scene available | Configured project format | `Scene: {scene}` | `unity_play` + `unity_logo` |
-| No project | `Unity Hub RPC` | `Idle` | `unity_idle` |
+| Detected state  | Details                   | State             | Artwork                     |
+| --------------- | ------------------------- | ----------------- | --------------------------- |
+| Project open    | Configured project format | `Unity {version}` | `unity_logo`                |
+| Scene available | Configured project format | `Scene: {scene}`  | `unity_play` + `unity_logo` |
+| No project      | `Unity Hub RPC`           | `Idle`            | `unity_idle`                |
 
 The default status format is `{project} — Unity {version}`. Discord details
-and state values are truncated to 128 characters. Active project states use the
-poller's timestamp as the elapsed-session start time.
+and state values are truncated to 128 characters. The elapsed-session start time is
+anchored to when the open project was first seen and held steady until the project
+changes, so Discord counts up instead of resetting on every poll.
 
 ## Configuration
 
@@ -152,7 +161,7 @@ poller's timestamp as the elapsed-session start time.
 ```json
 {
   "discordClientId": "1545892869363998771",
-  "updateIntervalMs": 5000,
+  "updateIntervalMs": 15000,
   "showSceneName": true,
   "showProjectPath": false,
   "idleTimeoutMinutes": 5,

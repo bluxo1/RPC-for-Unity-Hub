@@ -1,79 +1,76 @@
-import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import { homedir, platform } from 'node:os';
-import { basename, join } from 'node:path';
+import { basename } from 'node:path';
 import type { UnityHubState } from '../presence/transformer.js';
+import {
+  readProjectVersion,
+  readUnityRuntime,
+  type UnityRuntime,
+} from './unityProcess.js';
 
-type JsonValue = unknown;
+/**
+ * Discord renders `startTimestamp` as a live counter, so it has to stay fixed for as long
+ * as the same project stays open — recomputing it each poll pins the timer at 00:00.
+ */
+export class ProjectSessionClock {
+  private key: string | null = null;
+  private startedAt = 0;
 
-export function unityHubStatePaths(env: NodeJS.ProcessEnv = process.env): string[] {
-  if (platform() === 'win32') {
-    return [env.APPDATA, env.LOCALAPPDATA]
-      .filter((root): root is string => Boolean(root))
-      .flatMap((root) => [
-        join(root, 'UnityHub', 'projects-v1.json'),
-        join(root, 'UnityHub', 'editorv2.json'),
-        join(root, 'UnityHub', 'projects.json'),
-        join(root, 'UnityHub', 'editor'),
-      ]);
-  }
-  if (platform() === 'darwin') {
-    const root = join(homedir(), 'Library', 'Application Support', 'UnityHub');
-    return [join(root, 'editor'), join(root, 'projects.json')];
-  }
-  const root = join(env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'UnityHub');
-  return [join(root, 'editor'), join(root, 'projects.json')];
-}
-
-function firstString(data: JsonValue, keys: string[]): string | null {
-  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
-  for (const key of keys) {
-    const value = (data as Record<string, unknown>)[key];
-    if (typeof value === 'string' && value.length > 0) return value;
-  }
-  return null;
-}
-
-function documentsItems(document: JsonValue): JsonValue[] {
-  if (Array.isArray(document)) return document.flatMap(documentsItems);
-  if (!document || typeof document !== 'object') return [];
-  return [document, ...Object.values(document).flatMap(documentsItems)];
-}
-
-export function parseUnityHubDocuments(documents: JsonValue[], timestamp = Date.now() / 1000): UnityHubState {
-  let project: string | null = null;
-  let version: string | null = null;
-  let scene: string | null = null;
-  let projectPath: string | null = null;
-  for (const document of documents) {
-    for (const item of documentsItems(document)) {
-      projectPath ??= firstString(item, ['projectPath', 'path', 'location']);
-      project ??= firstString(item, ['project', 'projectName', 'name', 'title']);
-      version ??= firstString(item, ['version', 'unityVersion', 'editorVersion']);
-      scene ??= firstString(item, ['scene', 'sceneName', 'activeScene']);
-      if (projectPath && !project) project = basename(projectPath);
+  anchor(projectKey: string | null, now: number): number {
+    if (!projectKey) {
+      this.key = null;
+      return now;
     }
-  }
-  return { project, version, scene, projectPath, unityHubRunning: documents.length > 0, timestamp };
-}
-
-async function readJson(path: string): Promise<JsonValue | null> {
-  try {
-    return JSON.parse(await readFile(path, 'utf8')) as JsonValue;
-  } catch {
-    return null;
+    if (this.key !== projectKey) {
+      this.key = projectKey;
+      this.startedAt = now;
+    }
+    return this.startedAt;
   }
 }
 
-export async function readUnityHubState(paths = unityHubStatePaths()): Promise<UnityHubState> {
-  const existing = paths.filter(existsSync);
-  const documents = (await Promise.all(existing.map(readJson))).filter((value): value is JsonValue => value !== null);
-  return parseUnityHubDocuments(documents);
+export async function toUnityState(
+  runtime: UnityRuntime,
+  clock: ProjectSessionClock,
+  now: number,
+): Promise<UnityHubState> {
+  const editor = runtime.editor;
+  if (!editor) {
+    return {
+      project: null,
+      version: null,
+      scene: null,
+      projectPath: null,
+      unityHubRunning: runtime.hubRunning,
+      timestamp: clock.anchor(null, now),
+    };
+  }
+  const version =
+    editor.version ?? (await readProjectVersion(editor.projectPath));
+  return {
+    project: basename(editor.projectPath) || editor.projectPath,
+    version,
+    // The editor does not publish its active scene; that needs an in-editor script.
+    scene: null,
+    projectPath: editor.projectPath,
+    unityHubRunning: true,
+    timestamp: clock.anchor(editor.projectPath, now),
+  };
+}
+
+export async function readUnityState(
+  clock: ProjectSessionClock,
+  now = Date.now() / 1000,
+): Promise<UnityHubState> {
+  return toUnityState(await readUnityRuntime(), clock, now);
 }
 
 export class UnityHubMonitor {
   private timer?: NodeJS.Timeout;
-  constructor(private readonly onState: (state: UnityHubState) => void, private readonly intervalMs = 5000) {}
+  private polling = false;
+  private readonly clock = new ProjectSessionClock();
+  constructor(
+    private readonly onState: (state: UnityHubState) => void,
+    private readonly intervalMs = 15000,
+  ) {}
 
   start(): void {
     void this.poll();
@@ -85,6 +82,13 @@ export class UnityHubMonitor {
   }
 
   private async poll(): Promise<void> {
-    this.onState(await readUnityHubState());
+    // Enumerating processes can outlast a short interval; overlapping scans would only pile up.
+    if (this.polling) return;
+    this.polling = true;
+    try {
+      this.onState(await readUnityState(this.clock));
+    } finally {
+      this.polling = false;
+    }
   }
 }
