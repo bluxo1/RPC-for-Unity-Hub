@@ -1,7 +1,6 @@
 import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { platform } from 'node:os';
-import { join } from 'node:path';
 import { promisify } from 'node:util';
 
 const run = promisify(execFile);
@@ -41,13 +40,22 @@ export function parseEditorVersion(
   );
 }
 
+/**
+ * Unity reports the path in its own OS's flavour, which is not necessarily the flavour
+ * `node:path` resolves to, so split on both separators rather than trusting the host.
+ */
+export function parseProjectName(projectPath: string): string {
+  const segments = projectPath.split(/[\\/]+/).filter((s) => s.length > 0);
+  return segments[segments.length - 1] ?? projectPath;
+}
+
 /** Authoritative version for a project, written by the editor that last opened it. */
 export async function readProjectVersion(
   projectPath: string,
 ): Promise<string | null> {
   try {
     const raw = await readFile(
-      join(projectPath, 'ProjectSettings', 'ProjectVersion.txt'),
+      `${projectPath.replace(/[\\/]+$/, '')}/ProjectSettings/ProjectVersion.txt`,
       'utf8',
     );
     return EDITOR_VERSION_LINE.exec(raw)?.[1] ?? null;

@@ -3,9 +3,34 @@ import {
   hasHubProcess,
   parseEditorVersion,
   parsePosixProcessLines,
+  parseProjectName,
   parseProjectPathArg,
   selectUnityEditor,
 } from '../../src/state/unityProcess.js';
+
+// These must not depend on the host OS: CI runs on Linux but parses Windows paths.
+describe('parseProjectName', () => {
+  it('reads the last segment of a Windows path', () => {
+    expect(parseProjectName('C:\\Games\\SpaceGame')).toBe('SpaceGame');
+  });
+
+  it('reads the last segment of a POSIX path', () => {
+    expect(parseProjectName('/Users/me/Projects/SpaceGame')).toBe('SpaceGame');
+  });
+
+  it('ignores a trailing separator', () => {
+    expect(parseProjectName('C:\\Games\\SpaceGame\\')).toBe('SpaceGame');
+    expect(parseProjectName('/Users/me/SpaceGame/')).toBe('SpaceGame');
+  });
+
+  it('keeps names containing spaces', () => {
+    expect(parseProjectName('C:\\Games\\My Space Game')).toBe('My Space Game');
+  });
+
+  it('falls back to the input when there is no segment', () => {
+    expect(parseProjectName('/')).toBe('/');
+  });
+});
 
 describe('parseProjectPathArg', () => {
   it('reads a quoted path containing spaces', () => {

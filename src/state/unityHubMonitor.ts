@@ -1,6 +1,6 @@
-import { basename } from 'node:path';
 import type { UnityHubState } from '../presence/transformer.js';
 import {
+  parseProjectName,
   readProjectVersion,
   readUnityRuntime,
   type UnityRuntime,
@@ -46,7 +46,7 @@ export async function toUnityState(
   const version =
     editor.version ?? (await readProjectVersion(editor.projectPath));
   return {
-    project: basename(editor.projectPath) || editor.projectPath,
+    project: parseProjectName(editor.projectPath),
     version,
     // The editor does not publish its active scene; that needs an in-editor script.
     scene: null,
