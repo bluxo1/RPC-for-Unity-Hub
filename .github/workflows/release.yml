@@ -23,9 +23,19 @@ jobs:
       - name: Install Inno Setup
         shell: pwsh
         run: choco install innosetup --no-progress --yes
+      - name: Resolve version from tag
+        shell: pwsh
+        id: version
+        run: |
+          # workflow_dispatch has no tag, so fall back rather than stamping a branch name.
+          $ref = '${{ github.ref }}'
+          if ($ref -like 'refs/tags/v*') { $version = $ref -replace '^refs/tags/v', '' }
+          else { $version = '0.0.0-dev' }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Installer AppVersion: $version"
       - name: Build installer
         shell: pwsh
-        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\UnityHubRPC.iss'
+        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.version.outputs.version }} installer\UnityHubRPC.iss'
       - uses: actions/upload-artifact@v4
         with:
           name: UnityHubRPC-Windows

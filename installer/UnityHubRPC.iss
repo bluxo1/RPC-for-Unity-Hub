@@ -1,5 +1,8 @@
 #define AppName "Unity Hub RPC"
-#define AppVersion "0.1.0"
+; Overridden from the tag via ISCC /DAppVersion=... in CI; this default is only for local builds.
+#ifndef AppVersion
+  #define AppVersion "0.0.0-dev"
+#endif
 #define AppPublisher "Unity Hub RPC"
 #define AppExeName "UnityHubRPC.exe"
 
