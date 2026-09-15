@@ -171,9 +171,13 @@ export async function createTray(
       menu: buildMenu('idle', 'Starting…'),
       debug: false,
     });
-    tray.onError(
-      (error: Error) =>
-        void log('Tray unavailable; continuing headless', error),
+    // systray2 only builds its readline interface inside init(), which ready() awaits;
+    // attaching listeners before that throws on a null stream and would lose the tray
+    // to a fallback that looks like "headless".
+    await withTimeout(tray.ready(), READY_TIMEOUT_MS);
+
+    tray.onError((error: Error) =>
+      void log('Tray error; continuing headless', error),
     );
     void tray.onClick((action: TrayClick) => {
       switch (action.item.title) {
@@ -187,7 +191,6 @@ export async function createTray(
           return handlers.onExit();
       }
     });
-    await withTimeout(tray.ready(), READY_TIMEOUT_MS);
 
     return {
       setStatus(status, tooltip) {

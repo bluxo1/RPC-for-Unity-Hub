@@ -23,6 +23,7 @@ UninstallDisplayName={#AppName}
 
 [Files]
 Source: "..\dist\UnityHubRPC.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\traybin\*"; DestDir: "{app}\traybin"; Flags: ignoreversion
 Source: "..\config.example.json"; DestDir: "{app}"; DestName: "config.example.json"; Flags: ignoreversion
 
 [Icons]
