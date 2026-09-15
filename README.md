@@ -16,22 +16,27 @@ Implemented:
 - Project name and Unity version resolution with graceful idle handling
 - Discord IPC connection that tolerates Discord being unavailable, with a login
   timeout so an unreachable client cannot wedge the daemon
-- Config loading and validation from `config.json`
+- Config loading and validation from `config.json`, with hot reload
+- Idle timeout that clears the presence instead of leaving a stale activity card
+- Project path display, and `{path}` in the status format
+- A system tray with status icons, a tooltip, and a config/reload/logs/exit menu,
+  which degrades to headless when no tray is available
 - Discord field truncation to the 128-character limit
 - A stable elapsed-session timer anchored to the open project
 - File logging and a Windows logon startup task
 - TypeScript and Python tests with GitHub Actions CI
 - A standalone Windows executable and Inno Setup release pipeline
 
-Not yet wired into the daemon:
+Not implemented:
 
-- The system-tray boundary in `src/tray/` is currently a placeholder
-- Config hot reload, `idleTimeoutMinutes`, and `showProjectPath` are reserved
-  for follow-up work
-- Active scene reporting, and therefore `showSceneName`, would need an in-editor
-  script; the transformer already handles a scene if one is ever supplied
-- `python/` and `src/bridge/pythonBridge.ts` still implement the superseded
-  Unity Hub state-file approach and are not used by the Node daemon
+- Active scene reporting. The editor does not publish its active scene, so this
+  would need an in-editor script; the transformer handles a scene if one is ever
+  supplied, but nothing supplies one
+- macOS and Linux packaging. The daemon code paths exist, but only Windows is
+  packaged and tested
+- `python/` and `src/bridge/pythonBridge.ts` implement the superseded Unity Hub
+  state-file approach. Nothing in the daemon imports them, but CI still runs
+  their tests; they are candidates for removal
 
 ## Requirements
 
@@ -84,9 +89,19 @@ For TypeScript development:
 npm run dev
 ```
 
-The daemon polls every five seconds by default. Set `UNITY_HUB_RPC_CONFIG` to
-load a config file from another path. Set `UNITY_HUB_RPC_CONSOLE=1` to mirror
-log messages to stderr.
+The daemon polls every fifteen seconds by default. Each poll enumerates the
+process table (about 0.8 s on Windows) and Discord rate-limits activity updates,
+so a shorter interval mostly wastes CPU; lower `updateIntervalMs` if you want
+faster sync at a higher cost.
+
+Environment variables:
+
+| Variable                  | Effect                                            |
+| ------------------------- | ------------------------------------------------- |
+| `UNITY_HUB_RPC_CONFIG`    | Load the config file from another path            |
+| `UNITY_HUB_RPC_CONSOLE`   | Set to `1` to mirror log messages to stderr       |
+| `UNITY_HUB_RPC_NO_TRAY`   | Set to `1` to skip the tray and run headless      |
+| `UNITY_HUB_RPC_CLIENT_ID` | Override the Discord application ID at build time |
 
 On Windows, register automatic startup after building:
 
@@ -104,6 +119,34 @@ The Windows log is written to
 `%LOCALAPPDATA%\UnityHubRPC\unity-hub-rpc.log`. On macOS and Linux it is
 written below the user's state directory (`$XDG_STATE_HOME` or
 `~/.local/state`).
+
+## Tray
+
+The daemon puts an icon in the notification area so you can tell at a glance
+whether it is connected, and manage it without a terminal.
+
+| Icon  | Meaning                                                       |
+| ----- | ------------------------------------------------------------- |
+| Green | A Unity project is open and the presence is being published   |
+| Grey  | Running, no project open (during the idle grace period)       |
+| Red   | Discord could not be reached — is the desktop client running? |
+
+Selecting the icon opens a menu with the running version, **Open Config
+Folder**, **Reload Configuration**, **Show Debug Logs**, and **Exit**. The
+config folder item opens the directory holding `config.json`, not the file, so
+you can edit in whichever editor you prefer; the daemon picks the change up on
+its own. **Reload Configuration** is there for the case where you cannot wait
+for the watcher, and **Show Debug Logs** writes the current log to your
+temporary directory and opens it.
+
+Exit removes the icon and clears the presence from your Discord profile, so no
+stale "playing Unity Hub RPC" entry is left behind.
+
+The icon is drawn at runtime as a 32×32 PNG (or a `.ico` on Windows), so there
+are no image files to ship or keep in sync. If the tray cannot start — a
+headless session, a locked-down machine, or a missing helper binary — the
+daemon logs it and keeps running without the icon. Set
+`UNITY_HUB_RPC_NO_TRAY=1` to skip it deliberately.
 
 ## Build the standalone Windows release
 
@@ -139,20 +182,34 @@ as "nothing open" rather than a crash.
 
 The active scene is not detected: the editor does not publish it to any external
 file, so reporting it would require an in-editor script installed per project.
-`showSceneName` therefore has no effect at present.
+`showSceneName` therefore has no effect at present, and the second line falls
+back to the project path (`showProjectPath`) or the editor version.
 
 ## Presence mapping
 
-| Detected state  | Details                   | State             | Artwork                     |
-| --------------- | ------------------------- | ----------------- | --------------------------- |
-| Project open    | Configured project format | `Unity {version}` | `unity_logo`                |
-| Scene available | Configured project format | `Scene: {scene}`  | `unity_play` + `unity_logo` |
-| No project      | `Unity Hub RPC`           | `Idle`            | `unity_idle`                |
+| Detected state        | Details                   | State                  | Artwork                     |
+| --------------------- | ------------------------- | ---------------------- | --------------------------- |
+| Project open          | Configured project format | `Unity {version}`      | `unity_logo`                |
+| Scene available       | Configured project format | `Scene: {scene}`       | `unity_play` + `unity_logo` |
+| `showProjectPath`     | Configured project format | Project directory path | `unity_logo`                |
+| No project            | `Unity Hub RPC`           | `Idle`                 | `unity_idle`                |
+| Idle past the timeout | Activity cleared          | —                      | —                           |
 
-The default status format is `{project} — Unity {version}`. Discord details
-and state values are truncated to 128 characters. The elapsed-session start time is
-anchored to when the open project was first seen and held steady until the project
-changes, so Discord counts up instead of resetting on every poll.
+The default status format is `{project} — Unity {version}`, and `{path}` is also
+available. Discord details and state values are truncated to 128 characters. The
+elapsed-session start time is anchored to when the open project was first seen
+and held steady until the project changes, so Discord counts up instead of
+resetting on every poll.
+
+Only one fact fits on the second line, so an active scene takes precedence over
+the project path, which takes precedence over the version already shown in the
+details.
+
+Once no project has been open for `idleTimeoutMinutes`, the activity is removed
+from your profile entirely. Discord keeps displaying the last activity it was
+given until something clears it, so without this the idle placeholder would sit
+there for as long as the daemon ran. Set the timeout to `0` to clear immediately
+and never show the placeholder.
 
 ## Configuration
 
@@ -169,10 +226,24 @@ changes, so Discord counts up instead of resetting on every poll.
 }
 ```
 
-The schema validates the client ID, polling interval, display flags, idle
-timeout, and status format. Invalid or missing configuration falls back to
-safe defaults. Only `discordClientId`, `updateIntervalMs`, `showSceneName`,
-and `customStatusFormat` currently affect the Node daemon.
+| Setting              | Default                       | Effect                                                                   |
+| -------------------- | ----------------------------- | ------------------------------------------------------------------------ |
+| `discordClientId`    | shared app ID                 | Which Discord application owns the presence                              |
+| `updateIntervalMs`   | `15000`                       | Poll interval, minimum 250 ms                                            |
+| `showSceneName`      | `true`                        | Show `Scene: {scene}` when a scene is known                              |
+| `showProjectPath`    | `false`                       | Show the project's directory path                                        |
+| `idleTimeoutMinutes` | `5`                           | Minutes of no project before the presence is cleared; `0` clears at once |
+| `customStatusFormat` | `{project} — Unity {version}` | The details line; supports `{project}`, `{version}`, `{path}`            |
+
+The schema validates every field, and each one has a default, so a partial file
+is valid and a first run needs no configuration at all.
+
+`config.json` is reloaded while the daemon runs — no restart required. The
+watcher follows the parent directory rather than the file itself, so it keeps
+working across editors that save by renaming a temp file over the target, and
+picks up a config created after startup. If an edit is invalid, the running
+configuration is kept and the reason is logged; one half-typed line will not
+silently reset your settings.
 
 ## Tests and quality checks
 
@@ -199,15 +270,20 @@ and pull request.
 
 ```text
 src/                 TypeScript daemon
-  state/             Unity Hub file discovery and parsing
-  presence/          Discord activity transformation
+  index.ts           Entry point: wiring, signals, shutdown
+  state/             Unity editor process discovery and parsing
+  presence/          Discord activity transformation and idle policy
   discord/           Discord IPC client
-  config/            Configuration schema and loader
+  config/            Configuration schema, loader, and file watcher
+  tray/              Tray controller and generated icon data
+  bridge/            Optional Python bridge (superseded, see docs/PHASES.md)
   logging/           File and console logging
 python/              Optional Python parser and models
-tests/               TypeScript and Python tests
-docs/                Product, design, and architecture notes
-scripts/             Windows startup and uninstall scripts
+tests/ts/            TypeScript tests (Vitest)
+tests/python/        Python tests (pytest)
+docs/                Architecture, phases, and design notes
+installer/           Inno Setup script for the Windows installer
+scripts/             Build, icon generation, and Windows startup scripts
 ```
 
 ## Security and privacy

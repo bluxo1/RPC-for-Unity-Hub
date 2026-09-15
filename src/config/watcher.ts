@@ -4,10 +4,10 @@ import { readConfig } from './loader.js';
 import type { AppConfig } from './schema.js';
 
 /**
- * Editors and `npm run format` save atomically: they write a temp file and rename it over
- * the target, which destroys the inode a file-level watch is bound to. Watching the parent
- * directory and filtering by name survives that, and also catches a config created for the
- * first time while the daemon is already running.
+ * Watches the parent directory rather than the file. Editors and `npm run format` save
+ * atomically — write a temp file, rename it over the target — and a recreated file is
+ * reported as `add`, not `change`, so both events feed the same reload. This also picks up
+ * a config that is created for the first time while the daemon is already running.
  */
 export function watchConfig(
   path: string,
@@ -18,7 +18,7 @@ export function watchConfig(
   const watcher = watch(dirname(target), {
     depth: 0,
     ignoreInitial: true,
-    // Rename-over-rename can briefly expose a half-written file.
+    // A rename-over can briefly expose a half-written file; wait for the size to settle.
     awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 },
   });
 

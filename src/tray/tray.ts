@@ -176,8 +176,8 @@ export async function createTray(
     // to a fallback that looks like "headless".
     await withTimeout(tray.ready(), READY_TIMEOUT_MS);
 
-    tray.onError((error: Error) =>
-      void log('Tray error; continuing headless', error),
+    tray.onError(
+      (error: Error) => void log('Tray error; continuing headless', error),
     );
     void tray.onClick((action: TrayClick) => {
       switch (action.item.title) {
