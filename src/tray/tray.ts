@@ -118,8 +118,9 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  * binary is missing. Every failure here degrades to `noopTray` instead of propagating.
  *
  * systray2 resolves its helper as `./traybin/<bin>` relative to the working directory
- * before falling back to its own package directory, which is why the installer ships a
- * `traybin/` beside the executable.
+ * first, then next to its own module — which in the bundled build is the bundle, not the
+ * systray2 package. The working-directory lookup is the one that survives bundling, so the
+ * installer ships a `traybin/` beside the executable and launches it from there.
  */
 export async function createTray(
   handlers: TrayHandlers,

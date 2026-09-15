@@ -18,9 +18,10 @@ npx.cmd postject dist\UnityHubRPC.exe NODE_SEA_BLOB dist\unity-hub-rpc.blob --se
 if ($LASTEXITCODE -ne 0) { throw 'SEA blob injection failed.' }
 
 # The tray helper is a separate binary that a single-file executable cannot carry.
-# systray2 looks for it at `./traybin/<name>` relative to the working directory before
-# falling back to its own package, and the installer registers the app to start with
-# -WorkingDirectory '{app}', so shipping it beside the exe is what makes the tray work.
+# systray2 looks for it at `./traybin/<name>` relative to the working directory first and
+# next to its own module second, which after bundling is the exe rather than the systray2
+# package. The installer registers the app to start with -WorkingDirectory '{app}', so
+# shipping the helper beside the exe is what makes the tray work.
 $trayBin = 'node_modules\systray2\traybin\tray_windows_release.exe'
 if (-not (Test-Path $trayBin)) { throw "Tray helper not found at $trayBin." }
 New-Item -ItemType Directory -Force -Path dist\traybin | Out-Null
