@@ -8,12 +8,14 @@ export class DiscordClient {
   private client?: RPC.Client;
   private connected = false;
   private busy = false;
+  private cleared = true;
   constructor(private readonly clientId: string) {}
 
-  async update(presence: DiscordPresence): Promise<void> {
+  /** Returns whether Discord is reachable, which the tray reports as its status. */
+  async update(presence: DiscordPresence): Promise<boolean> {
     // Discord never answers the handshake for an unknown client id, so without this
     // guard every poll would stack up another IPC socket behind a login that never settles.
-    if (this.busy) return;
+    if (this.busy) return this.connected;
     this.busy = true;
     try {
       if (!this.client || !this.connected) await this.connect();
@@ -26,10 +28,33 @@ export class DiscordClient {
           largeImageKey: presence.assets.large_image,
           smallImageKey: presence.assets.small_image,
         });
+        this.cleared = false;
       }
     } catch (error) {
       await this.reset();
       void log('Discord RPC connection failed; will retry', error);
+    } finally {
+      this.busy = false;
+    }
+    return this.connected;
+  }
+
+  /**
+   * Drops the activity card once the idle timeout expires. Deliberately never opens a
+   * connection: with Discord closed there is nothing to clear, and dialling out on every
+   * idle poll would undo the reconnect backoff that `update` relies on.
+   */
+  async clear(): Promise<void> {
+    if (this.busy || this.cleared) return;
+    this.busy = true;
+    try {
+      if (this.connected && this.client?.user) {
+        await this.client.user.clearActivity();
+      }
+      this.cleared = true;
+    } catch (error) {
+      await this.reset();
+      void log('Discord RPC clear failed; will retry', error);
     } finally {
       this.busy = false;
     }
@@ -67,8 +92,23 @@ export class DiscordClient {
     this.connected = true;
   }
 
+  /** Clears the activity, if possible, and releases the IPC socket on shutdown. */
+  async destroy(): Promise<void> {
+    try {
+      if (this.connected && this.client?.user) {
+        await this.client.user.clearActivity();
+      }
+    } catch {
+      // Shutdown must not be blocked by a client that is already gone.
+    }
+    await this.reset();
+  }
+
   private async reset(): Promise<void> {
     this.connected = false;
+    // Discord drops the activity itself when the IPC socket closes, so a reset
+    // leaves nothing behind for `clear` to chase.
+    this.cleared = true;
     const client = this.client;
     this.client = undefined;
     if (!client) return;

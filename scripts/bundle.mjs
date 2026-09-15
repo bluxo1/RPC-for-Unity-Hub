@@ -13,6 +13,10 @@ if (!/^\d{6,}$/.test(clientId)) {
   throw new Error(`UNITY_HUB_RPC_CLIENT_ID must be digits, got: ${clientId}`);
 }
 
+// The executable is standalone, so the tray menu's version string has to be baked in
+// too — there is no package.json sitting next to it at runtime.
+const { version } = JSON.parse(await readFile('package.json', 'utf8'));
+
 await build({
   entryPoints: ['src/index.ts'],
   bundle: true,
@@ -21,6 +25,7 @@ await build({
   outfile,
   define: {
     'process.env.UNITY_HUB_RPC_CLIENT_ID': JSON.stringify(clientId),
+    'process.env.UNITY_HUB_RPC_VERSION': JSON.stringify(version),
   },
 });
 

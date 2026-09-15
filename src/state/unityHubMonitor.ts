@@ -68,8 +68,8 @@ export class UnityHubMonitor {
   private polling = false;
   private readonly clock = new ProjectSessionClock();
   constructor(
-    private readonly onState: (state: UnityHubState) => void,
-    private readonly intervalMs = 15000,
+    private readonly onState: (state: UnityHubState) => void | Promise<void>,
+    private intervalMs = 15000,
   ) {}
 
   start(): void {
@@ -79,6 +79,15 @@ export class UnityHubMonitor {
 
   stop(): void {
     if (this.timer) clearInterval(this.timer);
+    this.timer = undefined;
+  }
+
+  /** Retimes an already-running monitor; a config reload must not need a restart. */
+  setIntervalMs(intervalMs: number): void {
+    this.intervalMs = intervalMs;
+    if (!this.timer) return;
+    this.stop();
+    this.timer = setInterval(() => void this.poll(), this.intervalMs);
   }
 
   private async poll(): Promise<void> {
@@ -86,7 +95,9 @@ export class UnityHubMonitor {
     if (this.polling) return;
     this.polling = true;
     try {
-      this.onState(await readUnityState(this.clock));
+      // Awaited so a slow Discord round-trip also counts as "still polling" rather than
+      // letting the next tick start a second update behind it.
+      await this.onState(await readUnityState(this.clock));
     } finally {
       this.polling = false;
     }
