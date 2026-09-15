@@ -44,7 +44,8 @@ when Discord is unavailable — met.
 **Goal**: User-facing configuration and the system tray.
 
 - [x] JSON configuration with a validating schema and defaults for every field
-- [x] Hot reload without a restart, surviving atomic saves
+- [x] Hot reload without a restart, covering rename-over saves and recreated files
+- [x] Tests for the loader and watcher, including the reject-invalid-reload path
 - [x] Tray icon with connected / idle / error states and a status tooltip
 - [x] Context menu: Open Config Folder, Reload Configuration, Show Debug Logs, Exit
 - [x] Tray helper shipped with the installer
@@ -68,7 +69,7 @@ reflects state — met.
   supplies it. The editor does not publish its active scene; this needs an
   in-editor script, which the project deliberately avoids depending on.
 - [ ] macOS and Linux packaging (`.dmg`, AppImage/DEB). The daemon code paths
-  exist, but only Windows is packaged and tested today.
+      exist, but only Windows is packaged and tested today.
 - [ ] Tray icon dark/light theming.
 
 **Definition of done**: partially met — Windows is complete; the other two
@@ -100,6 +101,9 @@ platforms still need packaging and a real test pass.
 4. **No `LICENSE`**, which blocks a public release.
 5. **Discord asset keys** (`unity_logo`, `unity_idle`, `unity_play`) must be
    uploaded to the Discord application or the images render blank.
+6. **The tray has no automated test.** It spawns a native helper, so it is
+   covered by running the built daemon and checking that the helper process
+   appears and is torn down on shutdown, not by a unit test.
 
 ---
 
@@ -134,11 +138,11 @@ platforms still need packaging and a real test pass.
 
 ## Risk Register
 
-| Risk | Likelihood | Impact | Mitigation |
-| --- | --- | --- | --- |
-| Unity changes how the project path is passed on the command line | Medium | High | Parsing is isolated in `unityProcess.ts` with tests; fall back to `ProjectVersion.txt` |
-| Discord IPC protocol changes | Low | High | Use the maintained `@xhayper/discord-rpc` library |
-| Tray helper is missing from a packaged build | Medium | Low | Degrades to headless; the installer ships `traybin/` |
-| Cross-platform tray inconsistencies | Medium | Medium | Tray is optional by design; failures never stop presence |
-| Scene detection is unreliable | Medium | Medium | Left unimplemented rather than requiring an editor plugin |
-| Low adoption | Medium | Low | Focus on polish; share in Unity and Discord dev communities |
+| Risk                                                             | Likelihood | Impact | Mitigation                                                                             |
+| ---------------------------------------------------------------- | ---------- | ------ | -------------------------------------------------------------------------------------- |
+| Unity changes how the project path is passed on the command line | Medium     | High   | Parsing is isolated in `unityProcess.ts` with tests; fall back to `ProjectVersion.txt` |
+| Discord IPC protocol changes                                     | Low        | High   | Use the maintained `@xhayper/discord-rpc` library                                      |
+| Tray helper is missing from a packaged build                     | Medium     | Low    | Degrades to headless; the installer ships `traybin/`                                   |
+| Cross-platform tray inconsistencies                              | Medium     | Medium | Tray is optional by design; failures never stop presence                               |
+| Scene detection is unreliable                                    | Medium     | Medium | Left unimplemented rather than requiring an editor plugin                              |
+| Low adoption                                                     | Medium     | Low    | Focus on polish; share in Unity and Discord dev communities                            |
