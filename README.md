@@ -8,6 +8,23 @@ editor, converts the result into a Discord activity, and communicates
 with the Discord desktop client through its local IPC transport. It does not
 need a Discord bot token, a Unity Editor plugin, or project uploads.
 
+## Get started (Windows)
+
+No build, no configuration, no account setup:
+
+1. Download **`UnityHubRPC-Setup.exe`** from the
+   [latest release](https://github.com/bluxo1/RPC-for-Unity-Hub/releases/latest).
+2. Run it. It installs for your user only — no admin rights — and starts
+   automatically every time you log in.
+3. Make sure the **Discord desktop app** is running, then open a project from
+   Unity Hub.
+
+Within about fifteen seconds your Discord profile shows the project name, the
+Unity version, and a session timer. Close the project and it returns to idle. A
+tray icon by the clock shows whether it is connected and lets you open the log,
+reload settings, or exit. That is the whole setup — everything below is for
+customization or building from source.
+
 ## Current status
 
 Implemented:
@@ -45,7 +62,9 @@ Not implemented:
 - Discord desktop app
 - Python 3.10 or newer only when using the optional Python parser or Python tests
 
-## Install
+## Build from source
+
+If you want to run from source or hack on it rather than use the installer above:
 
 ```bash
 git clone https://github.com/bluxo1/RPC-for-Unity-Hub.git
