@@ -57,9 +57,11 @@ Not implemented:
 
 ## Requirements
 
+- Windows to use the installer; other platforms build from source
+- Unity Hub, with any Unity version it can launch — the version is read from the
+  running editor, so both the legacy `2022.3.x` scheme and Unity 6 (`6000.x`) work
+- Discord desktop app (the web client does not expose the local IPC socket)
 - Node.js 22 or newer for source builds only
-- Unity Hub
-- Discord desktop app
 - Python 3.10 or newer only when using the optional Python parser or Python tests
 
 ## Build from source
